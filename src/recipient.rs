@@ -43,7 +43,7 @@ impl age::Recipient for Argon2idRecipient {
         OsRng.fill_bytes(&mut salt);
 
         // 2. Derive 32-byte wrapping key via Argon2id
-        let wrapping_key = derive_wrapping_key(&self.passphrase, &salt, &self.params);
+        let wrapping_key = derive_wrapping_key(&self.passphrase, &salt, &self.params)?;
 
         // 3. Wrap FileKey using age's AEAD
         let body = age_core::primitives::aead_encrypt(&wrapping_key, file_key.expose_secret());
@@ -69,23 +69,28 @@ impl age::Recipient for Argon2idRecipient {
 }
 
 /// Derive a 32-byte wrapping key from a passphrase and salt using Argon2id.
+///
+/// Returns `Err` if the Argon2 parameters are invalid or hashing fails.
 pub(crate) fn derive_wrapping_key(
     passphrase: &[u8],
     salt: &[u8],
     params: &Argon2Params,
-) -> [u8; 32] {
+) -> Result<[u8; 32], age::EncryptError> {
     let argon2_params =
-        argon2::Params::new(params.m_cost(), params.t_cost(), params.p_cost(), Some(32))
-            .expect("valid argon2 params");
+        argon2::Params::new(params.m_cost(), params.t_cost(), params.p_cost(), Some(32)).map_err(
+            |e| age::EncryptError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)),
+        )?;
 
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, argon2_params);
 
     let mut key = [0u8; 32];
     argon2
         .hash_password_into(passphrase, salt, &mut key)
-        .expect("argon2 hash should succeed");
+        .map_err(|e| {
+            age::EncryptError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+        })?;
 
-    key
+    Ok(key)
 }
 
 #[cfg(test)]
@@ -99,8 +104,8 @@ mod tests {
         let salt = [1u8; 16];
         let params = Argon2Params::new(256, 1, 1).unwrap();
 
-        let key1 = derive_wrapping_key(passphrase, &salt, &params);
-        let key2 = derive_wrapping_key(passphrase, &salt, &params);
+        let key1 = derive_wrapping_key(passphrase, &salt, &params).unwrap();
+        let key2 = derive_wrapping_key(passphrase, &salt, &params).unwrap();
         assert_eq!(key1, key2);
     }
 

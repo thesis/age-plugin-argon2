@@ -83,7 +83,10 @@ impl age::Identity for Argon2idIdentity {
         }
 
         // 4. Derive wrapping key
-        let wrapping_key = derive_wrapping_key(&self.passphrase, &salt, &params);
+        let wrapping_key = match derive_wrapping_key(&self.passphrase, &salt, &params) {
+            Ok(k) => k,
+            Err(_) => return Some(Err(DecryptError::InvalidHeader)),
+        };
 
         // 5. AEAD-unwrap the file key
         let mut plaintext =
