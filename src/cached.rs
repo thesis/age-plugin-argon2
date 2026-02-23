@@ -98,9 +98,9 @@ impl age::Recipient for CachedRecipient {
             tag: STANZA_TAG.to_string(),
             args: vec![
                 STANDARD_NO_PAD.encode(self.salt),
-                self.params.m_cost.to_string(),
-                self.params.t_cost.to_string(),
-                self.params.p_cost.to_string(),
+                self.params.m_cost().to_string(),
+                self.params.t_cost().to_string(),
+                self.params.p_cost().to_string(),
             ],
             body,
         };
@@ -121,11 +121,7 @@ mod tests {
     use age::{Identity, Recipient};
 
     fn fast_params() -> Argon2Params {
-        Argon2Params {
-            m_cost: 256,
-            t_cost: 1,
-            p_cost: 1,
-        }
+        Argon2Params::new(256, 1, 1).unwrap()
     }
 
     #[test]

@@ -143,11 +143,7 @@ mod tests {
     use crate::recipient::Argon2idRecipient;
 
     fn fast_params() -> Argon2Params {
-        Argon2Params {
-            m_cost: 256,
-            t_cost: 1,
-            p_cost: 1,
-        }
+        Argon2Params::new(256, 1, 1).unwrap()
     }
 
     #[test]

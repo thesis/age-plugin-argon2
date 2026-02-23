@@ -13,5 +13,5 @@ pub mod recipient;
 pub use cached::{CachedIdentity, CachedMaterial, CachedRecipient};
 pub use encrypt::{encrypt_with_file_key, EncryptWithFileKeyError};
 pub use identity::Argon2idIdentity;
-pub use params::Argon2Params;
+pub use params::{Argon2Params, InvalidParams};
 pub use recipient::Argon2idRecipient;

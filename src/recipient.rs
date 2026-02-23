@@ -53,9 +53,9 @@ impl age::Recipient for Argon2idRecipient {
             tag: STANZA_TAG.to_string(),
             args: vec![
                 STANDARD_NO_PAD.encode(salt),
-                self.params.m_cost.to_string(),
-                self.params.t_cost.to_string(),
-                self.params.p_cost.to_string(),
+                self.params.m_cost().to_string(),
+                self.params.t_cost().to_string(),
+                self.params.p_cost().to_string(),
             ],
             body,
         };
@@ -74,8 +74,9 @@ pub(crate) fn derive_wrapping_key(
     salt: &[u8],
     params: &Argon2Params,
 ) -> [u8; 32] {
-    let argon2_params = argon2::Params::new(params.m_cost, params.t_cost, params.p_cost, Some(32))
-        .expect("valid argon2 params");
+    let argon2_params =
+        argon2::Params::new(params.m_cost(), params.t_cost(), params.p_cost(), Some(32))
+            .expect("valid argon2 params");
 
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, argon2_params);
 
@@ -96,11 +97,7 @@ mod tests {
     fn test_derive_wrapping_key_deterministic() {
         let passphrase = b"test-password";
         let salt = [1u8; 16];
-        let params = Argon2Params {
-            m_cost: 256, // small for test speed
-            t_cost: 1,
-            p_cost: 1,
-        };
+        let params = Argon2Params::new(256, 1, 1).unwrap();
 
         let key1 = derive_wrapping_key(passphrase, &salt, &params);
         let key2 = derive_wrapping_key(passphrase, &salt, &params);
@@ -109,14 +106,7 @@ mod tests {
 
     #[test]
     fn test_wrap_file_key_produces_valid_stanza() {
-        let recipient = Argon2idRecipient::new(
-            b"test",
-            Argon2Params {
-                m_cost: 256,
-                t_cost: 1,
-                p_cost: 1,
-            },
-        );
+        let recipient = Argon2idRecipient::new(b"test", Argon2Params::new(256, 1, 1).unwrap());
 
         let file_key = FileKey::new(Box::new([42u8; 16]));
         let (stanzas, labels) = recipient.wrap_file_key(&file_key).unwrap();

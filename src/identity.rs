@@ -72,10 +72,9 @@ impl age::Identity for Argon2idIdentity {
             Err(_) => return Some(Err(DecryptError::InvalidHeader)),
         };
 
-        let params = Argon2Params {
-            m_cost,
-            t_cost,
-            p_cost,
+        let params = match Argon2Params::new(m_cost, t_cost, p_cost) {
+            Ok(p) => p,
+            Err(_) => return Some(Err(DecryptError::InvalidHeader)),
         };
 
         // 3. Validate body length (16 file key + 16 poly1305 tag = 32)
@@ -121,11 +120,7 @@ mod tests {
     use age::{Identity, Recipient};
 
     fn fast_params() -> Argon2Params {
-        Argon2Params {
-            m_cost: 256,
-            t_cost: 1,
-            p_cost: 1,
-        }
+        Argon2Params::new(256, 1, 1).unwrap()
     }
 
     #[test]
