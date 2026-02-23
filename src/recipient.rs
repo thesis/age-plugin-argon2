@@ -43,11 +43,7 @@ impl age::Recipient for Argon2idRecipient {
         OsRng.fill_bytes(&mut salt);
 
         // 2. Derive 32-byte wrapping key via Argon2id
-        let wrapping_key = derive_wrapping_key(
-            &self.passphrase,
-            &salt,
-            &self.params,
-        );
+        let wrapping_key = derive_wrapping_key(&self.passphrase, &salt, &self.params);
 
         // 3. Wrap FileKey using age's AEAD
         let body = age_core::primitives::aead_encrypt(&wrapping_key, file_key.expose_secret());
@@ -78,13 +74,8 @@ pub(crate) fn derive_wrapping_key(
     salt: &[u8],
     params: &Argon2Params,
 ) -> [u8; 32] {
-    let argon2_params = argon2::Params::new(
-        params.m_cost,
-        params.t_cost,
-        params.p_cost,
-        Some(32),
-    )
-    .expect("valid argon2 params");
+    let argon2_params = argon2::Params::new(params.m_cost, params.t_cost, params.p_cost, Some(32))
+        .expect("valid argon2 params");
 
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, argon2_params);
 
@@ -118,11 +109,14 @@ mod tests {
 
     #[test]
     fn test_wrap_file_key_produces_valid_stanza() {
-        let recipient = Argon2idRecipient::new(b"test", Argon2Params {
-            m_cost: 256,
-            t_cost: 1,
-            p_cost: 1,
-        });
+        let recipient = Argon2idRecipient::new(
+            b"test",
+            Argon2Params {
+                m_cost: 256,
+                t_cost: 1,
+                p_cost: 1,
+            },
+        );
 
         let file_key = FileKey::new(Box::new([42u8; 16]));
         let (stanzas, labels) = recipient.wrap_file_key(&file_key).unwrap();

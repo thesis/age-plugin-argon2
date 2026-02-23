@@ -47,8 +47,7 @@ pub fn encrypt_with_file_key(
         write!(header, "-> {}", stanza.tag)
             .map_err(|e| EncryptWithFileKeyError::Io(e.to_string()))?;
         for arg in &stanza.args {
-            write!(header, " {}", arg)
-                .map_err(|e| EncryptWithFileKeyError::Io(e.to_string()))?;
+            write!(header, " {}", arg).map_err(|e| EncryptWithFileKeyError::Io(e.to_string()))?;
         }
         header.push(b'\n');
 
@@ -90,8 +89,7 @@ pub fn encrypt_with_file_key(
     // Write everything except the trailing "---" that we added for MAC computation
     output.extend_from_slice(&header[..header.len() - 3]);
     // Write the MAC line: "--- <mac>\n"
-    write!(output, "--- {}\n", mac_b64)
-        .map_err(|e| EncryptWithFileKeyError::Io(e.to_string()))?;
+    write!(output, "--- {}\n", mac_b64).map_err(|e| EncryptWithFileKeyError::Io(e.to_string()))?;
 
     // 5. Generate 16-byte random nonce for the payload
     let mut nonce = [0u8; 16];

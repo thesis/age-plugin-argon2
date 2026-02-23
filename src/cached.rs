@@ -141,7 +141,7 @@ mod tests {
         let stanza = Stanza {
             tag: "thesis.co/argon2".to_string(),
             args: vec![], // args not checked by CachedIdentity
-            body: vec![],  // body not checked by CachedIdentity
+            body: vec![], // body not checked by CachedIdentity
         };
 
         let result = identity.unwrap_stanza(&stanza).unwrap().unwrap();
@@ -212,12 +212,18 @@ mod tests {
 
         // Step 4: Decrypt with cached identity
         let cached_identity = CachedIdentity::new(&material);
-        let result = cached_identity.unwrap_stanza(&new_stanzas[0]).unwrap().unwrap();
+        let result = cached_identity
+            .unwrap_stanza(&new_stanzas[0])
+            .unwrap()
+            .unwrap();
         assert_eq!(result.expose_secret(), &[42u8; 16]);
 
         // Step 5: Also verify Argon2idIdentity can decrypt the cached stanza
         let full_identity = Argon2idIdentity::new(passphrase);
-        let result2 = full_identity.unwrap_stanza(&new_stanzas[0]).unwrap().unwrap();
+        let result2 = full_identity
+            .unwrap_stanza(&new_stanzas[0])
+            .unwrap()
+            .unwrap();
         assert_eq!(result2.expose_secret(), &[42u8; 16]);
     }
 }

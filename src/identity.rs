@@ -87,14 +87,11 @@ impl age::Identity for Argon2idIdentity {
         let wrapping_key = derive_wrapping_key(&self.passphrase, &salt, &params);
 
         // 5. AEAD-unwrap the file key
-        let mut plaintext = match age_core::primitives::aead_decrypt(
-            &wrapping_key,
-            FILE_KEY_BYTES,
-            &stanza.body,
-        ) {
-            Ok(pt) => pt,
-            Err(_) => return Some(Err(DecryptError::KeyDecryptionFailed)),
-        };
+        let mut plaintext =
+            match age_core::primitives::aead_decrypt(&wrapping_key, FILE_KEY_BYTES, &stanza.body) {
+                Ok(pt) => pt,
+                Err(_) => return Some(Err(DecryptError::KeyDecryptionFailed)),
+            };
 
         // 6. Build FileKey and capture material
         let file_key = FileKey::init_with_mut(|fk| {
@@ -160,7 +157,10 @@ mod tests {
         let identity = Argon2idIdentity::new(b"wrong");
         let result = identity.unwrap_stanza(&stanzas[0]);
 
-        assert!(matches!(result, Some(Err(DecryptError::KeyDecryptionFailed))));
+        assert!(matches!(
+            result,
+            Some(Err(DecryptError::KeyDecryptionFailed))
+        ));
     }
 
     #[test]
