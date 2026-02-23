@@ -50,6 +50,13 @@ impl Drop for CachedIdentity {
 }
 
 impl age::Identity for CachedIdentity {
+    /// Return the cached FileKey for any matching stanza.
+    ///
+    /// This intentionally skips body verification: the cached file key was
+    /// already authenticated during the initial full-KDF `Argon2idIdentity`
+    /// decryption. If the file key is wrong (e.g. corrupted keychain), the
+    /// age STREAM layer will detect it via its per-chunk Poly1305 MAC and
+    /// return a decryption error — no silent data corruption is possible.
     fn unwrap_stanza(&self, stanza: &Stanza) -> Option<Result<FileKey, DecryptError>> {
         if stanza.tag != STANZA_TAG {
             return None;
