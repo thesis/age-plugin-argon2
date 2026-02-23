@@ -9,7 +9,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::params::Argon2Params;
 
-const STANZA_TAG: &str = "argon2id";
+const STANZA_TAG: &str = "thesis.co/argon2";
 
 /// Cached key material from a successful Argon2id decryption.
 ///
@@ -139,7 +139,7 @@ mod tests {
 
         let identity = CachedIdentity::new(&material);
         let stanza = Stanza {
-            tag: "argon2id".to_string(),
+            tag: "thesis.co/argon2".to_string(),
             args: vec![], // args not checked by CachedIdentity
             body: vec![],  // body not checked by CachedIdentity
         };
@@ -181,7 +181,7 @@ mod tests {
 
         let (stanzas, labels) = recipient.wrap_file_key(&file_key).unwrap();
         assert_eq!(stanzas.len(), 1);
-        assert_eq!(stanzas[0].tag, "argon2id");
+        assert_eq!(stanzas[0].tag, "thesis.co/argon2");
         assert_eq!(stanzas[0].args.len(), 4);
         assert_eq!(stanzas[0].body.len(), 32);
         assert_eq!(labels.len(), 1);

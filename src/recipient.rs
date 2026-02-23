@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::params::Argon2Params;
 
-const STANZA_TAG: &str = "argon2id";
+const STANZA_TAG: &str = "thesis.co/argon2";
 
 /// Argon2id recipient — full KDF encryption path.
 ///
@@ -128,7 +128,7 @@ mod tests {
         let (stanzas, labels) = recipient.wrap_file_key(&file_key).unwrap();
 
         assert_eq!(stanzas.len(), 1);
-        assert_eq!(stanzas[0].tag, "argon2id");
+        assert_eq!(stanzas[0].tag, "thesis.co/argon2");
         assert_eq!(stanzas[0].args.len(), 4);
         // body = 16 bytes file key + 16 bytes poly1305 tag = 32 bytes
         assert_eq!(stanzas[0].body.len(), 32);

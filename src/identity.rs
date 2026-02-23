@@ -11,7 +11,7 @@ use crate::cached::CachedMaterial;
 use crate::params::Argon2Params;
 use crate::recipient::derive_wrapping_key;
 
-const STANZA_TAG: &str = "argon2id";
+const STANZA_TAG: &str = "thesis.co/argon2";
 
 /// Argon2id identity — full KDF decryption path.
 ///
