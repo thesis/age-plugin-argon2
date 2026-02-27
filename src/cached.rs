@@ -5,6 +5,7 @@ use age_core::format::{FileKey, Stanza};
 use base64::engine::general_purpose::STANDARD_NO_PAD;
 use base64::Engine;
 use secrecy::ExposeSecret;
+use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::params::Argon2Params;
@@ -15,7 +16,7 @@ const STANZA_TAG: &str = "thesis.co/argon2";
 ///
 /// Contains everything needed to re-encrypt and re-decrypt without
 /// running the KDF again. Stored in the OS keychain during a session.
-#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct CachedMaterial {
     /// The age FileKey (16 bytes)
     pub file_key: [u8; 16],
@@ -188,6 +189,31 @@ mod tests {
         assert_eq!(stanzas[0].args.len(), 4);
         assert_eq!(stanzas[0].body.len(), 32);
         assert_eq!(labels.len(), 1);
+    }
+
+    #[test]
+    fn test_cached_material_serde_roundtrip() {
+        let material = CachedMaterial {
+            file_key: [42u8; 16],
+            wrapping_key: [99u8; 32],
+            salt: [1u8; 16],
+            params: fast_params(),
+        };
+
+        let json = serde_json::to_string(&material).expect("serialize");
+        let restored: CachedMaterial = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(restored.file_key, material.file_key);
+        assert_eq!(restored.wrapping_key, material.wrapping_key);
+        assert_eq!(restored.salt, material.salt);
+        assert_eq!(restored.params, material.params);
+    }
+
+    #[test]
+    fn test_cached_material_serde_rejects_invalid_params() {
+        // Valid material but with p_cost=0 should fail deserialization
+        let json = r#"{"file_key":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"wrapping_key":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"salt":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"params":{"m_cost":256,"t_cost":1,"p_cost":0}}"#;
+        assert!(serde_json::from_str::<CachedMaterial>(json).is_err());
     }
 
     #[test]
