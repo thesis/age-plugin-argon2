@@ -1,7 +1,26 @@
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
+
+/// Raw helper for validated deserialization of [`Argon2Params`].
+#[derive(Deserialize)]
+struct Argon2ParamsRaw {
+    m_cost: u32,
+    t_cost: u32,
+    p_cost: u32,
+}
+
+impl TryFrom<Argon2ParamsRaw> for Argon2Params {
+    type Error = InvalidParams;
+
+    fn try_from(raw: Argon2ParamsRaw) -> Result<Self, Self::Error> {
+        Self::new(raw.m_cost, raw.t_cost, raw.p_cost)
+    }
+}
+
 /// Argon2id parameters for key derivation.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "Argon2ParamsRaw")]
 pub struct Argon2Params {
     /// Memory cost in KiB (minimum 8)
     m_cost: u32,
