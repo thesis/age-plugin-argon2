@@ -23,6 +23,7 @@ pub struct Argon2idIdentity {
 }
 
 impl Argon2idIdentity {
+    /// Create a new identity from a passphrase.
     pub fn new(passphrase: &[u8]) -> Self {
         Self {
             passphrase: passphrase.to_vec(),

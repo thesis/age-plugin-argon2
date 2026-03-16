@@ -25,6 +25,7 @@ pub struct Argon2idRecipient {
 }
 
 impl Argon2idRecipient {
+    /// Create a new recipient from a passphrase and Argon2id parameters.
     pub fn new(passphrase: &[u8], params: Argon2Params) -> Self {
         Self {
             passphrase: passphrase.to_vec(),

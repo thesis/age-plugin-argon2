@@ -37,6 +37,7 @@ pub struct CachedIdentity {
 }
 
 impl CachedIdentity {
+    /// Create a new cached identity from previously captured key material.
     pub fn new(material: &CachedMaterial) -> Self {
         Self {
             file_key: material.file_key,
@@ -78,6 +79,7 @@ pub struct CachedRecipient {
 }
 
 impl CachedRecipient {
+    /// Create a new cached recipient from previously captured key material.
     pub fn new(material: &CachedMaterial) -> Self {
         Self {
             wrapping_key: material.wrapping_key,

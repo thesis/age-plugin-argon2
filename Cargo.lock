@@ -78,6 +78,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "age-plugin-argon2-cli"
+version = "0.1.0"
+dependencies = [
+ "age-plugin-argon2",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
