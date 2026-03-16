@@ -124,12 +124,16 @@ pub fn encrypt_with_file_key(
     Ok(output)
 }
 
+/// Error returned by [`encrypt_with_file_key`].
 #[derive(Debug, thiserror::Error)]
 pub enum EncryptWithFileKeyError {
+    /// The recipient failed to wrap the file key.
     #[error("failed to wrap file key: {0}")]
     Wrap(String),
+    /// An I/O error occurred while building the output.
     #[error("I/O error: {0}")]
     Io(String),
+    /// A cryptographic operation failed.
     #[error("cryptographic error: {0}")]
     Crypto(String),
 }

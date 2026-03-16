@@ -5,8 +5,9 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Argon2id recipient/identity plugin for the age encryption format"
 repository = "https://github.com/thesis/age-plugin-argon2"
-categories = ["cryptography"]
-keywords = ["age", "argon2", "kdf", "encryption"]
+readme = "../README.md"
+categories = ["cryptography", "authentication"]
+keywords = ["age", "argon2", "encryption", "password", "plugin"]
 
 [dependencies]
 age-core = "0.11"

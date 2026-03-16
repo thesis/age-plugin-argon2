@@ -58,14 +58,17 @@ impl Argon2Params {
         })
     }
 
+    /// Memory cost in KiB.
     pub fn m_cost(&self) -> u32 {
         self.m_cost
     }
 
+    /// Time cost (number of iterations).
     pub fn t_cost(&self) -> u32 {
         self.t_cost
     }
 
+    /// Parallelism (number of lanes).
     pub fn p_cost(&self) -> u32 {
         self.p_cost
     }
