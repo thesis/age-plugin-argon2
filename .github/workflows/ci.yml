@@ -39,6 +39,23 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
 
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install rage
+        run: cargo install rage --locked
+      - name: Install passage
+        run: |
+          git clone https://github.com/FiloSottile/passage
+          sudo make -C passage install PREFIX=/usr/local
+      - name: Build plugin binary
+        run: cargo build -p age-plugin-argon2-cli
+      - name: Run e2e tests
+        run: cargo test -p age-plugin-argon2-cli --features e2e --test e2e
+
   deny:
     runs-on: ubuntu-latest
     steps:
@@ -47,7 +64,7 @@ jobs:
 
   ci-pass:
     if: always()
-    needs: [fmt, clippy, test, deny]
+    needs: [fmt, clippy, test, test-e2e, deny]
     runs-on: ubuntu-latest
     steps:
       - name: Decide whether all jobs passed
