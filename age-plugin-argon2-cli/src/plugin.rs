@@ -158,7 +158,7 @@ impl IdentityPluginV1 for IdentityPlugin {
         let passphrase = match callbacks.request_secret("Passphrase for age-plugin-argon2")? {
             Ok(p) => p,
             Err(e) => {
-                return Err(io::Error::new(io::ErrorKind::Other, e.to_string()));
+                return Err(io::Error::other(e.to_string()));
             }
         };
         let passphrase_bytes = passphrase.expose_secret().as_bytes().to_vec();
