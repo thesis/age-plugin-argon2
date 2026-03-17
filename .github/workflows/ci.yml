@@ -54,7 +54,7 @@ jobs:
       - name: Build plugin binary
         run: cargo build -p age-plugin-argon2-cli
       - name: Run e2e tests
-        run: cargo test --test e2e
+        run: cargo test -p age-plugin-argon2-cli --features e2e --test e2e
 
   deny:
     runs-on: ubuntu-latest

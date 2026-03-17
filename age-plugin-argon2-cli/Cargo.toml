@@ -19,6 +19,13 @@ clap = { version = "4", features = ["derive"] }
 secrecy = "0.10"
 thiserror = "1.0"
 
+[features]
+e2e = []
+
+[[test]]
+name = "e2e"
+required-features = ["e2e"]
+
 [dev-dependencies]
 tempfile = "3"
 rexpect = "0.6"
