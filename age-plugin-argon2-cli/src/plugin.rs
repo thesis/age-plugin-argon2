@@ -40,10 +40,8 @@ impl RecipientPluginV1 for RecipientPlugin {
         // bytes is the raw decoded bech32 payload — re-encode so decode_recipient can parse it.
         // The age-plugin framework strips the HRP and passes only the raw data bytes.
         // We reconstruct params directly from the 12-byte payload.
-        let params = params_from_plugin_bytes(bytes).map_err(|e| recipient::Error::Recipient {
-            index,
-            message: e,
-        })?;
+        let params = params_from_plugin_bytes(bytes)
+            .map_err(|e| recipient::Error::Recipient { index, message: e })?;
         self.recipients.push(params);
         Ok(())
     }
@@ -55,10 +53,8 @@ impl RecipientPluginV1 for RecipientPlugin {
         bytes: &[u8],
     ) -> Result<(), recipient::Error> {
         let _ = plugin_name;
-        let params = params_from_plugin_bytes(bytes).map_err(|e| recipient::Error::Identity {
-            index,
-            message: e,
-        })?;
+        let params = params_from_plugin_bytes(bytes)
+            .map_err(|e| recipient::Error::Identity { index, message: e })?;
         self.identities.push(params);
         Ok(())
     }
@@ -131,10 +127,8 @@ impl IdentityPluginV1 for IdentityPlugin {
         bytes: &[u8],
     ) -> Result<(), identity::Error> {
         let _ = plugin_name;
-        let params = params_from_plugin_bytes(bytes).map_err(|e| identity::Error::Identity {
-            index,
-            message: e,
-        })?;
+        let params = params_from_plugin_bytes(bytes)
+            .map_err(|e| identity::Error::Identity { index, message: e })?;
         self.identities.push(params);
         Ok(())
     }

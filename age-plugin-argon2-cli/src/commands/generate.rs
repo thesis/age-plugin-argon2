@@ -112,7 +112,10 @@ mod tests {
         assert_eq!(params_r.t_cost(), 2);
         assert_eq!(params_r.p_cost(), 2);
 
-        let identity_line = contents.lines().find(|l| l.starts_with("AGE-PLUGIN-")).unwrap();
+        let identity_line = contents
+            .lines()
+            .find(|l| l.starts_with("AGE-PLUGIN-"))
+            .unwrap();
         let params_i = decode_identity(identity_line).unwrap();
         assert_eq!(params_i, params_r);
     }

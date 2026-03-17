@@ -112,8 +112,7 @@ fn rage_encrypt_decrypt_roundtrip() {
         .arg(&ciphertext_path)
         .arg(&plaintext_path)
         .env("PATH", path_with_plugin());
-    let mut enc = spawn_command(cmd, Some(10_000))
-        .expect("failed to spawn rage for encryption");
+    let mut enc = spawn_command(cmd, Some(10_000)).expect("failed to spawn rage for encryption");
 
     enc.exp_regex("(?i)passphrase")
         .expect("no passphrase prompt during encryption");
@@ -130,8 +129,7 @@ fn rage_encrypt_decrypt_roundtrip() {
         .arg(&decrypted_path)
         .arg(&ciphertext_path)
         .env("PATH", path_with_plugin());
-    let mut dec = spawn_command(cmd, Some(10_000))
-        .expect("failed to spawn rage for decryption");
+    let mut dec = spawn_command(cmd, Some(10_000)).expect("failed to spawn rage for decryption");
 
     dec.exp_regex("(?i)passphrase")
         .expect("no passphrase prompt during decryption");
@@ -176,7 +174,10 @@ fn rage_wrong_passphrase_fails() {
     dec.send_line("wrong-passphrase").unwrap();
     let remaining = dec.exp_eof().unwrap_or_default();
 
-    assert!(!remaining.contains("secret"), "decryption should have failed");
+    assert!(
+        !remaining.contains("secret"),
+        "decryption should have failed"
+    );
 }
 
 // ------------------------------------------------------------------
@@ -219,8 +220,7 @@ fn passage_insert_show_roundtrip() {
         .env("PASSAGE_IDENTITIES_FILE", &identity_path)
         .env("PASSAGE_AGE", "rage")
         .env("PATH", &path_env);
-    let mut ins = spawn_command(cmd, Some(30_000))
-        .expect("failed to spawn passage insert");
+    let mut ins = spawn_command(cmd, Some(30_000)).expect("failed to spawn passage insert");
 
     ins.exp_regex("(?i)enter password")
         .expect("no password prompt from passage insert");
@@ -239,8 +239,7 @@ fn passage_insert_show_roundtrip() {
         .env("PASSAGE_IDENTITIES_FILE", &identity_path)
         .env("PASSAGE_AGE", "rage")
         .env("PATH", &path_env);
-    let mut show = spawn_command(cmd, Some(30_000))
-        .expect("failed to spawn passage show");
+    let mut show = spawn_command(cmd, Some(30_000)).expect("failed to spawn passage show");
 
     show.exp_regex("(?i)passphrase")
         .expect("no passphrase prompt from plugin during show");

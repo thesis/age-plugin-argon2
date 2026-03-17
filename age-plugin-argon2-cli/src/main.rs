@@ -12,7 +12,10 @@ mod plugin;
 use plugin::Argon2PluginHandler;
 
 #[derive(Debug, Parser)]
-#[command(name = "age-plugin-argon2", about = "age plugin for Argon2id password-based encryption")]
+#[command(
+    name = "age-plugin-argon2",
+    about = "age plugin for Argon2id password-based encryption"
+)]
 struct Args {
     /// Run the given age plugin state machine (internal use by age clients).
     #[arg(long, value_name = "STATE-MACHINE")]
@@ -82,7 +85,9 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
-    eprintln!("Usage: age-plugin-argon2 --generate [-o FILE] [--m-cost N] [--t-cost N] [--p-cost N]");
+    eprintln!(
+        "Usage: age-plugin-argon2 --generate [-o FILE] [--m-cost N] [--t-cost N] [--p-cost N]"
+    );
     eprintln!("       age-plugin-argon2 --list -i FILE");
     process::exit(1);
 }
