@@ -52,9 +52,9 @@ jobs:
           git clone https://github.com/FiloSottile/passage
           sudo make -C passage install PREFIX=/usr/local
       - name: Build plugin binary
-        run: cargo build -p age-plugin-argon2-cli
+        run: cargo build -p age-plugin-argon2
       - name: Run e2e tests
-        run: cargo test -p age-plugin-argon2-cli --features e2e --test e2e
+        run: cargo test -p age-plugin-argon2 --features e2e --test e2e
 
   deny:
     runs-on: ubuntu-latest
