@@ -8,6 +8,13 @@
 /// fail with an actionable message rather than silently skipping.
 ///
 /// KDF params are set to the minimum valid values (m=8, t=1, p=1) so the tests run fast.
+///
+/// # Passphrase injection
+///
+/// rage discovers pinentry via PATH and speaks the Assuan protocol to get passphrases.
+/// We place a custom `pinentry` shim first in PATH that returns `PINENTRY_PASSPHRASE`
+/// from the environment. This avoids PTY interaction for rage entirely.
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -29,15 +36,6 @@ fn plugin_bin() -> &'static str {
     env!("CARGO_BIN_EXE_age-plugin-argon2")
 }
 
-/// Returns a PATH string that prepends the directory containing our plugin binary.
-fn path_with_plugin() -> String {
-    let bin_dir = Path::new(plugin_bin())
-        .parent()
-        .expect("plugin binary has no parent dir");
-    let existing = std::env::var("PATH").unwrap_or_default();
-    format!("{}:{existing}", bin_dir.display())
-}
-
 fn require_tool(name: &str) {
     Command::new(name)
         .arg("--version")
@@ -50,6 +48,44 @@ fn require_tool(name: &str) {
                  See .github/workflows/ci.yml for how CI installs these tools."
             )
         });
+}
+
+/// Write a `pinentry` shim to `dir/pinentry` that speaks the Assuan protocol
+/// and returns `$PINENTRY_PASSPHRASE` in response to `GETPIN`.
+///
+/// rage discovers pinentry via PATH, so prepending `dir` to PATH causes rage
+/// (and any subprocess it spawns) to use this shim instead of pinentry-curses.
+fn write_pinentry(dir: &Path) {
+    let script = "\
+#!/bin/sh
+printf 'OK Pleased to meet you\\n'
+while IFS= read -r line; do
+    line=$(printf '%s' \"$line\" | tr -d '\\r')
+    case \"$line\" in
+        GETPIN*) printf 'D %s\\nOK\\n' \"$PINENTRY_PASSPHRASE\" ;;
+        BYE*)    printf 'OK\\n'; exit 0 ;;
+        *)       printf 'OK\\n' ;;
+    esac
+done
+";
+    for name in &["pinentry", "pinentry-curses", "pinentry-tty"] {
+        let path = dir.join(name);
+        std::fs::write(&path, script).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+}
+
+/// Returns a PATH string with the pinentry dir and plugin binary dir prepended.
+fn make_path(pinentry_dir: &Path) -> String {
+    let bin_dir = Path::new(plugin_bin())
+        .parent()
+        .expect("plugin binary has no parent dir");
+    let existing = std::env::var("PATH").unwrap_or_default();
+    format!(
+        "{}:{}:{existing}",
+        pinentry_dir.display(),
+        bin_dir.display()
+    )
 }
 
 /// Generate an identity file and return (identity_path, recipient_string).
@@ -93,91 +129,96 @@ fn generate_identity(dir: &Path) -> (PathBuf, String) {
 // ------------------------------------------------------------------
 
 /// rage encrypt → rage decrypt roundtrip.
+///
+/// Passphrase is provided via the pinentry shim — no PTY needed.
 #[test]
 fn rage_encrypt_decrypt_roundtrip() {
     require_tool("rage");
 
     let dir = TempDir::new().unwrap();
+    let pinentry_dir = TempDir::new().unwrap();
+    write_pinentry(pinentry_dir.path());
     let (identity_path, recipient) = generate_identity(dir.path());
 
     let plaintext_path = dir.path().join("plain.txt");
     let ciphertext_path = dir.path().join("cipher.age");
     let decrypted_path = dir.path().join("decrypted.txt");
     let plaintext = "hello from rage e2e test\n";
+    let path = make_path(pinentry_dir.path());
 
     std::fs::write(&plaintext_path, plaintext).unwrap();
 
-    // Encrypt — plugin prompts for passphrase via rage.
-    let mut cmd = Command::new("rage");
-    cmd.args(["-r", &recipient, "-o"])
+    let enc = Command::new("rage")
+        .args(["-r", &recipient, "-o"])
         .arg(&ciphertext_path)
         .arg(&plaintext_path)
-        .env("PATH", path_with_plugin());
-    let mut enc = spawn_command(cmd, Some(10_000)).expect("failed to spawn rage for encryption");
+        .env("PATH", &path)
+        .env("PINENTRY_PASSPHRASE", PASSPHRASE)
+        .output()
+        .expect("failed to run rage encrypt");
+    assert!(
+        enc.status.success(),
+        "rage encrypt failed:\n{}",
+        String::from_utf8_lossy(&enc.stderr),
+    );
 
-    enc.exp_regex("(?i)passphrase")
-        .expect("no passphrase prompt during encryption");
-    enc.send_line(PASSPHRASE).unwrap();
-    enc.exp_eof().expect("rage encrypt did not exit cleanly");
-
-    assert!(ciphertext_path.exists(), "no ciphertext file produced");
-
-    // Decrypt — plugin prompts for passphrase again.
-    let mut cmd = Command::new("rage");
-    cmd.args(["-d", "-i"])
+    let dec = Command::new("rage")
+        .args(["-d", "-i"])
         .arg(&identity_path)
         .arg("-o")
         .arg(&decrypted_path)
         .arg(&ciphertext_path)
-        .env("PATH", path_with_plugin());
-    let mut dec = spawn_command(cmd, Some(10_000)).expect("failed to spawn rage for decryption");
+        .env("PATH", &path)
+        .env("PINENTRY_PASSPHRASE", PASSPHRASE)
+        .output()
+        .expect("failed to run rage decrypt");
+    assert!(
+        dec.status.success(),
+        "rage decrypt failed:\n{}",
+        String::from_utf8_lossy(&dec.stderr),
+    );
 
-    dec.exp_regex("(?i)passphrase")
-        .expect("no passphrase prompt during decryption");
-    dec.send_line(PASSPHRASE).unwrap();
-    dec.exp_eof().expect("rage decrypt did not exit cleanly");
-
-    let decrypted = std::fs::read_to_string(&decrypted_path).unwrap();
-    assert_eq!(decrypted, plaintext);
+    assert_eq!(std::fs::read_to_string(&decrypted_path).unwrap(), plaintext);
 }
 
-/// Wrong passphrase: rage decrypt should exit without producing the plaintext.
+/// Wrong passphrase: rage decrypt should exit non-zero.
 #[test]
 fn rage_wrong_passphrase_fails() {
     require_tool("rage");
 
     let dir = TempDir::new().unwrap();
+    let pinentry_dir = TempDir::new().unwrap();
+    write_pinentry(pinentry_dir.path());
     let (identity_path, recipient) = generate_identity(dir.path());
 
     let plaintext_path = dir.path().join("plain.txt");
     let ciphertext_path = dir.path().join("cipher.age");
+    let path = make_path(pinentry_dir.path());
+
     std::fs::write(&plaintext_path, b"secret").unwrap();
 
-    // Encrypt with the correct passphrase.
-    let mut cmd = Command::new("rage");
-    cmd.args(["-r", &recipient, "-o"])
+    let enc = Command::new("rage")
+        .args(["-r", &recipient, "-o"])
         .arg(&ciphertext_path)
         .arg(&plaintext_path)
-        .env("PATH", path_with_plugin());
-    let mut enc = spawn_command(cmd, Some(10_000)).unwrap();
-    enc.exp_regex("(?i)passphrase").unwrap();
-    enc.send_line(PASSPHRASE).unwrap();
-    enc.exp_eof().unwrap();
+        .env("PATH", &path)
+        .env("PINENTRY_PASSPHRASE", PASSPHRASE)
+        .output()
+        .unwrap();
+    assert!(enc.status.success(), "rage encrypt failed");
 
-    // Decrypt with the wrong passphrase — should fail.
-    let mut cmd = Command::new("rage");
-    cmd.args(["-d", "-i"])
+    let dec = Command::new("rage")
+        .args(["-d", "-i"])
         .arg(&identity_path)
         .arg(&ciphertext_path)
-        .env("PATH", path_with_plugin());
-    let mut dec = spawn_command(cmd, Some(10_000)).unwrap();
-    dec.exp_regex("(?i)passphrase").unwrap();
-    dec.send_line("wrong-passphrase").unwrap();
-    let remaining = dec.exp_eof().unwrap_or_default();
+        .env("PATH", &path)
+        .env("PINENTRY_PASSPHRASE", "wrong-passphrase")
+        .output()
+        .unwrap();
 
     assert!(
-        !remaining.contains("secret"),
-        "decryption should have failed"
+        !dec.status.success(),
+        "rage decrypt should have failed with wrong passphrase"
     );
 }
 
@@ -187,8 +228,10 @@ fn rage_wrong_passphrase_fails() {
 
 /// passage insert → passage show roundtrip.
 ///
-/// passage init sets up the store with our recipient. insert encrypts the
-/// secret (rage invokes our plugin for the passphrase). show decrypts it.
+/// The passage store is set up manually (no `passage init`) since the
+/// installed version may not have that subcommand. The argon2 passphrase
+/// is provided via the pinentry shim; PTY is only needed for passage's
+/// own bash `read` prompts when inserting.
 #[test]
 fn passage_insert_show_roundtrip() {
     require_tool("rage");
@@ -196,59 +239,63 @@ fn passage_insert_show_roundtrip() {
 
     let store_dir = TempDir::new().unwrap();
     let identity_dir = TempDir::new().unwrap();
+    let pinentry_dir = TempDir::new().unwrap();
+    write_pinentry(pinentry_dir.path());
+
     let (identity_path, recipient) = generate_identity(identity_dir.path());
+    let path = make_path(pinentry_dir.path());
+
+    // Set up the passage store manually: create the directory and write the
+    // recipients file. This avoids relying on `passage init`.
+    std::fs::create_dir_all(store_dir.path()).unwrap();
+    std::fs::write(
+        store_dir.path().join(".age-recipients"),
+        format!("{recipient}\n"),
+    )
+    .unwrap();
 
     let secret_name = "test/my-secret";
     let secret_value = "hunter2-from-passage-e2e";
-    let path_env = path_with_plugin();
 
-    // Init the passage store with our recipient.
-    let status = Command::new("passage")
-        .args(["init", &recipient])
-        .env("PASSWORD_STORE_DIR", store_dir.path())
-        .env("PASSAGE_IDENTITIES_FILE", &identity_path)
-        .env("PASSAGE_AGE", "rage")
-        .env("PATH", &path_env)
-        .status()
-        .expect("failed to run passage init");
-    assert!(status.success(), "passage init failed");
-
-    // Insert: passage prompts for the password, then rage invokes our plugin.
-    // -f skips the retype confirmation prompt.
+    // Insert: passage uses bash `read -s -p` to get the password, which goes
+    // through the PTY. rage gets the argon2 passphrase from the pinentry shim.
+    // We handle both "Enter password" and "Retype password" prompts.
     let mut cmd = Command::new("passage");
-    cmd.args(["insert", "-f", secret_name])
+    cmd.args(["insert", secret_name])
         .env("PASSWORD_STORE_DIR", store_dir.path())
         .env("PASSAGE_IDENTITIES_FILE", &identity_path)
         .env("PASSAGE_AGE", "rage")
-        .env("PATH", &path_env);
+        .env("PATH", &path)
+        .env("PINENTRY_PASSPHRASE", PASSPHRASE);
     let mut ins = spawn_command(cmd, Some(30_000)).expect("failed to spawn passage insert");
 
     ins.exp_regex("(?i)enter password")
-        .expect("no password prompt from passage insert");
+        .expect("no 'Enter password' prompt from passage");
     ins.send_line(secret_value).unwrap();
-
-    ins.exp_regex("(?i)passphrase")
-        .expect("no passphrase prompt from plugin during insert");
-    ins.send_line(PASSPHRASE).unwrap();
-
+    ins.exp_regex("(?i)retype password")
+        .expect("no 'Retype password' prompt from passage");
+    ins.send_line(secret_value).unwrap();
     ins.exp_eof().expect("passage insert did not exit cleanly");
 
-    // Show: rage invokes our plugin for the passphrase, then passage prints the secret.
-    let mut cmd = Command::new("passage");
-    cmd.args(["show", secret_name])
+    // Show: passage calls rage which uses the pinentry shim — no PTY needed.
+    let show = Command::new("passage")
+        .args(["show", secret_name])
         .env("PASSWORD_STORE_DIR", store_dir.path())
         .env("PASSAGE_IDENTITIES_FILE", &identity_path)
         .env("PASSAGE_AGE", "rage")
-        .env("PATH", &path_env);
-    let mut show = spawn_command(cmd, Some(30_000)).expect("failed to spawn passage show");
+        .env("PATH", &path)
+        .env("PINENTRY_PASSPHRASE", PASSPHRASE)
+        .output()
+        .expect("failed to run passage show");
 
-    show.exp_regex("(?i)passphrase")
-        .expect("no passphrase prompt from plugin during show");
-    show.send_line(PASSPHRASE).unwrap();
-
-    let output = show.exp_eof().expect("passage show did not exit cleanly");
+    assert!(
+        show.status.success(),
+        "passage show failed:\n{}",
+        String::from_utf8_lossy(&show.stderr),
+    );
+    let output = String::from_utf8_lossy(&show.stdout);
     assert!(
         output.contains(secret_value),
-        "passage show output did not contain the secret; got: {output:?}"
+        "passage show output did not contain the secret; got: {output:?}",
     );
 }
