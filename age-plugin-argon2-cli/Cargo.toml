@@ -21,3 +21,4 @@ thiserror = "1.0"
 
 [dev-dependencies]
 tempfile = "3"
+rexpect = "0.6"
