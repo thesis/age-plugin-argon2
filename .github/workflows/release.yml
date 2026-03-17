@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ["age-plugin-argon2-v*"]
+    tags: ["v*"]
 
 permissions:
   contents: write
@@ -11,7 +11,60 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install -y musl-tools
+
+      - name: Build
+        run: cargo build -p age-plugin-argon2 --release --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          VERSION="${GITHUB_REF_NAME#age-plugin-argon2-}"
+          ARCHIVE="age-plugin-argon2-${VERSION}-${{ matrix.target }}.tar.gz"
+          tar czf "$ARCHIVE" -C "target/${{ matrix.target }}/release" age-plugin-argon2
+          echo "ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^age-plugin-argon2-', ''
+          $archive = "age-plugin-argon2-${version}-${{ matrix.target }}.zip"
+          Compress-Archive `
+            -Path "target/${{ matrix.target }}/release/age-plugin-argon2.exe" `
+            -DestinationPath $archive
+          echo "ARCHIVE=$archive" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.ARCHIVE }}
+
   publish:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +79,20 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+  release:
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
       - name: Create GitHub release
-        run: gh release create "${{ github.ref_name }}" --generate-notes
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --generate-notes \
+            artifacts/*
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
