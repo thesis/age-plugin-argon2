@@ -1,3 +1,4 @@
+#![cfg(unix)]
 /// End-to-end tests using rage and passage as the age client.
 ///
 /// These tests verify the full IPC state machine: our binary is discovered via PATH,

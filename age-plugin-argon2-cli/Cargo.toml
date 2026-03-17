@@ -28,4 +28,6 @@ required-features = ["e2e"]
 
 [dev-dependencies]
 tempfile = "3"
+
+[target.'cfg(unix)'.dev-dependencies]
 rexpect = "0.6"
