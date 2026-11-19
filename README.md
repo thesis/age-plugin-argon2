@@ -38,6 +38,13 @@ cargo install age-plugin-argon2
 The binary must be named `age-plugin-argon2` and be on your `$PATH` so age
 clients can discover it automatically.
 
+To use only the library, turn off the default `plugin` feature. That drops the
+plugin protocol and CLI dependencies:
+
+```toml
+age-plugin-argon2 = { version = "0.2", default-features = false }
+```
+
 ## Usage
 
 ### Generate an identity
