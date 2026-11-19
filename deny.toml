@@ -1,5 +1,16 @@
 [advisories]
 yanked = "warn"
+ignore = [
+    # Unmaintained, with no fixed release. Neither names a vulnerability.
+    # Both are build-time proc-macro dependencies of `age`'s localized
+    # error messages (age -> i18n-embed-fl), which no feature removes.
+    "RUSTSEC-2026-0374", # basic-toml (via i18n-config)
+    "RUSTSEC-2026-0173", # proc-macro-error2 (via i18n-embed-fl)
+    # chrono is unmaintained, with no fixed release. It reaches only the
+    # plugin binary, through age-plugin's plugin protocol. The library
+    # does not link it when the `plugin` feature is off.
+    "RUSTSEC-2026-0543", # chrono (via age-plugin)
+]
 
 [licenses]
 confidence-threshold = 0.8
