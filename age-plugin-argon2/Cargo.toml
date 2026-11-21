@@ -1,6 +1,6 @@
 [package]
 name = "age-plugin-argon2"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Argon2id recipient/identity plugin for the age encryption format"
@@ -10,7 +10,15 @@ categories = ["cryptography", "authentication"]
 keywords = ["age", "argon2", "encryption", "password", "plugin"]
 
 [features]
-e2e = []
+default = ["plugin"]
+# The `age-plugin-argon2` binary. A crate that only links the library
+# can turn this off and skip the plugin protocol and CLI dependencies.
+plugin = ["dep:age-plugin", "dep:bech32", "dep:clap"]
+e2e = ["plugin"]
+
+[[bin]]
+name = "age-plugin-argon2"
+required-features = ["plugin"]
 
 [[test]]
 name = "e2e"
@@ -19,11 +27,11 @@ required-features = ["e2e"]
 [dependencies]
 age-core = "0.11"
 age = "0.11"
-age-plugin = "0.6"
+age-plugin = { version = "0.6", optional = true }
 argon2 = { version = "0.5", features = ["std"] }
-bech32 = "0.9"
+bech32 = { version = "0.9", optional = true }
 chacha20poly1305 = "0.10"
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive"], optional = true }
 rand = { version = "0.8", features = ["std_rng"] }
 base64 = "0.22"
 uuid = { version = "1", features = ["v4"] }
@@ -36,6 +44,7 @@ serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 
 [dev-dependencies]
+bech32 = "0.9"
 serde_json = "1.0"
 tempfile = "3"
 
